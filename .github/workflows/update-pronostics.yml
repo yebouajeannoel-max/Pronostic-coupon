@@ -1,0 +1,39 @@
+name: Mettre à jour les pronostics gratuits
+
+on:
+  schedule:
+    - cron: "31 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-pronostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tester les scripts
+        run: python -m unittest discover -s tests
+      - name: Calculer les pronostics gratuits
+        env:
+          FOOTBALL_KEY: ${{ secrets.FOOTBALL_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python scripts/update_pronostics.py
+      - name: Enregistrer les nouveaux pronostics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pronostics.json
+          if git diff --cached --quiet; then
+            echo "Aucun nouveau pronostic à enregistrer."
+            exit 0
+          fi
+          git commit -m "Mise à jour des pronostics gratuits"
+          git push

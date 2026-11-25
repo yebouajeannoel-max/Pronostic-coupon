@@ -1,0 +1,41 @@
+name: Mettre à jour les scores
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-scores:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Préparer la configuration publique de Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python scripts/write_auth_config.py
+      - name: Récupérer les scores
+        env:
+          FOOTBALL_KEY: ${{ secrets.FOOTBALL_KEY }}
+        run: python scripts/update_scores.py
+      - name: Enregistrer les nouveaux scores
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scores.json auth-config.js
+          if git diff --cached --quiet; then
+            echo "Aucun nouveau score à enregistrer."
+            exit 0
+          fi
+          git commit -m "Mise à jour des scores"
+          git push
